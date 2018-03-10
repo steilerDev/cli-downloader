@@ -1,0 +1,9 @@
+# CLI-Downloader
+
+This is an extensible downloader for CLI usage only. See 'modules/decrypt/README' and 'modules/download/README' to understand how you can write new modules for this application.
+
+Currently included modules:
+* premiumize.me
+* share-online.biz by [DirtyDan88](https://github.com/DirtyDan88/share-online-pyloader)
+
+See the modules to fill in configuration parameter.

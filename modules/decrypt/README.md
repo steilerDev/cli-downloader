@@ -1,0 +1,1 @@
+This folder contains available modules to decrypt a provided dlc file. The module can be set in the configuration file. The module will be executed with the full path to the DLC file (-d option) and the full path to the links file (-l option), where the download links should be inserted, one per line.
