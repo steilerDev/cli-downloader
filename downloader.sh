@@ -1,31 +1,28 @@
 #!/bin/bash 
 
-# Color variables
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-RED='\033[1;31m'
-NC='\033[0m'
+# Settings
+DLC_DECRYPT_MODULE="dcrypt.sh"
+EXPTRACT_MODULE="unrar.sh"
+DOWNLOAD_DIR="/media/files/Downloads"
 
-LOG_FILE="/tmp/log"
+export INSTALL_DIR="/opt/cli-downloader"
+if [ -e $INSTALL_DIR/modules/log/log.sh ]; then
+    source $INSTALL_DIR/modules/log/log.sh
+else
+    echo "Unable to load log module ($INSTALL_DIR/modules/log/log.sh)!"
+fi
 
 LINK_FILE=".downloader.$$.links"
 TEMP_FILE=".downloader.$$.tmp"
-
-INSTALL_DIR="/opt/cli-downloader"
-DLC_DECRYPT_MODULE="dcrypt.it.sh"
-
-DOWNLOAD_DIR="/media/files/Downloads"
 
 main () {
     savelog -q $LOG_FILE
 
     debug "$(date)"
     if [ $# -eq 0 ]; then
-        log "No files provided, scanning current directory for '.dlc' or '.links' files..."
-        set -- "$(ls *.dlc *.links)"
+        log "No dlc container or file list provided!"
     fi
     debug "Got the following files: $@"
-    
     
     while getopts "e" opt; do
         case $opt in
@@ -117,34 +114,25 @@ start_download () {
 
             cd $DOWNLOAD_DIR
             $FQ_MOD -l $FQ_LINK
+            if [ ! $FQ_MOD -e ] ; then
+                log_start "Module did not extract the files, starting extraction..."
+                extract_files $FQ_LINK
+            fi
             cd $CURR_DIR 
+            rm $FQ_LINK
         fi
         rm $MODULE_LINK_FILE
     done
     rm $LINK_FILE
 }
 
-log_start () {
-    echo -e "${CYAN}$@${NC}"
-    debug $@
-}
-
-log_finish () {
-    echo -e "${GREEN}$@${NC}"
-    debug $@
-}
-
-log_error () {
-    echo -e "${RED}$@${NC}"
-    debug $@
-}
-
-log () {
-    echo $@ | tee -a $LOG_FILE
-}
-
-debug () {
-    echo $@ >> $LOG_FILE
+extract_files () {
+    if [ -e $INSTALL_DIR/modules/extract/$EXTRACT_MODULE ] ; then
+        $INSTALL_DIR/modules/extract/$EXTRACT_MODULE -l $1
+    else
+        log_error "Unable to find specified extract module ($EXTRACT_MODULE)"
+        exit
+    fi
 }
 
 main $@

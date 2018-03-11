@@ -3,3 +3,5 @@ This folder contains the downloader module. Each executable file in this folder 
 In order to check capabilities, each executable should return a \n separated list of supported hosts (e.g. "http://share-online.com") when executed with the -h flag.
 
 When executed with the -l flag, followed by a file, the script should donwload the link list into it's current working directory.
+
+When executed with the '-e' flag, the skript should return with 0 if it did not extract the files and 1 if it did. In case of 0, please ensure that the LINK_FILE that was provided, now contains the list of files downloaded.

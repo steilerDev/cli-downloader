@@ -13,8 +13,8 @@ from queue     import PriorityQueue, Empty
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor
 
-USERNAME = os.environ['SO-USERNAME'] # enter username here
-PASSWORD = os.environ['SO-PASSWORD'] # enter password here
+USERNAME = os.environ['SO_USERNAME'] # enter username here
+PASSWORD = os.environ['SO_PASSWORD'] # enter password here
 
 #===============================================================================
 class DownloadStatus:

@@ -1,8 +1,19 @@
 #!/bin/bash 
-source /opt/cli-downloader/modules/download/conf/premiumize.conf
+
 # The config needs to hold the following variables:
 #   USER_ID=""
 #   USER_PIN=""
+if [ -e $INSTALL_DIR/modules/download/conf/premiumize.conf ]; then
+    source $INSTALL_DIR/modules/download/conf/premiumize.conf
+else
+    echo "Unable to load log module ($INSTALL_DIR/modules/download/conf/premiumize.conf)!"
+fi
+
+if [ -e $INSTALL_DIR/modules/log/log.sh ]; then
+    source $INSTALL_DIR/modules/log/log.sh
+else
+    echo "Unable to load log module ($INSTALL_DIR/modules/log/log.sh)!"
+fi
 
 MAX_PARALLEL_DL=6
 
@@ -18,14 +29,8 @@ TEMP_LINK_FILE=".premiumize.$$.link"
 TOTAL_FILE_COUNT=0
 RETRY_COUNT=0
 
-# Color variables
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-RED='\033[1;31m'
-NC='\033[0m'
-
 main () {
-    while getopts "hl:" opt; do
+    while getopts "ehl:" opt; do
         case $opt in
             h)
                 echo "http://ul.to"
@@ -34,6 +39,9 @@ main () {
                 ;;
             l)
                 start_download $OPTARG
+                ;;
+            e)
+                exit 0
                 ;;
             \?)
                 echo "Invalid option: -$OPTARG" >&2
@@ -147,7 +155,11 @@ download_file_list () {
         debug "All Downloads started, waiting for them to finish..."
         wait
 
-        extract_files
+        # Putting the file names of the downloaded files into the LINKS_FILE, in order to be extracted by the downloader later
+        > ${LINKS_FILE} 
+        while read -r URL SIZE FILENAME; do
+            echo $FILENAME >> ${LINKS_FILE}
+        done < "${TEMP_LINK_FILE}"
     fi
 }
 
@@ -172,94 +184,6 @@ download_file () {
     else
         log_finish "- Finished downloading ${CFC}/${TFC} (${NAME})!"
     fi
-}
-
-# Clears tempfile, replaces LINKS_FILE and empties it
-extract_files () {
-    log "Trying to extract files..."
-  
-    log "- Preparing extraction..." 
-    # Sorting files by filename, means we will start with the first archive, subsequential archives do not contain inforamtion about preceding archives, resulting in re-doing the extraction when not starting with the first archive
-
-    debug "Sorting ${TEMP_LINK_FILE}..."
-    > ${TEMP_FILE} 
-    while read -r OURL URL SIZE FILENAME; do
-        echo $FILENAME >> ${TEMP_FILE}
-    done < "${TEMP_LINK_FILE}"
-    sort ${TEMP_FILE} -o ${TEMP_LINK_FILE}
-    > ${TEMP_FILE} 
-    debug "${TEMP_LINK_FILE} sorted!"
-
-    while [ -s ${TEMP_LINK_FILE} ] ; do
-        read -r FILENAME < ${TEMP_LINK_FILE}
-        log_start "- Processing $FILENAME"
-        if [ ! -e $FILENAME ] ; then
-            log_error "-- $FILENAME does not exist, unable to extract"
-            sed -i '/'"${FILENAME}"'/d' ${TEMP_LINK_FILE}
-        elif [[ $FILENAME == *".rar" ]] ; then
-            log "-- Extracting ${FILENAME}..."
-            UNRAR_ERR=false
-
-            # Check if all volumes are there
-            if unrar l -v $FILENAME 2>&1 | grep -q "Cannot find volume" ; then
-                log_error "--- Archive not complete, aborting"
-                UNRAR_ERR=true
-            else
-                unrar x -o+ $FILENAME | tr $'\r' $'\n' >> $LOG_FILE 2>&1
-                UNRAR_EXIT="${PIPESTATUS[0]}"
-                if [ "$UNRAR_EXIT" -ne "0" ] ; then
-                    log_error "--- Extraction of $FILENAME failed!"
-                    UNRAR_ERR=true
-                fi
-            fi
-
-            if [ "$UNRAR_ERR" = true ] ; then
-                sed -i '/'"${FILENAME}"'/d' ${TEMP_LINK_FILE}
-            fi
-
-            # Getting all files belonging to archive, in order to delete them later and not process them again
-            unrar l -v $FILENAME 2>&1 | \
-                grep '^Archive' | \
-                sed -e 's/Archive: //g' | \
-                while read -r line; do
-                    log "--- $line is part of ${FILENAME}'s archive"
-
-                    if [ "$UNRAR_ERR" = false ] ; then
-                        # Adding the filename to the temp file will mark it for removal later, only doing so, if the extraction was successful
-                        echo ${line} >> ${TEMP_FILE}
-                    fi
-                    # Removing line from links file means, that the file will not be processed during extraction again
-                    sed -i '/'"${line}"'/d' ${TEMP_LINK_FILE}
-                done
-            log_finish "- Finished processing $FILENAME"
-        else
-            log_error "- Archive (${FILENAME}) is not rar"
-            sed -i '/'"${FILENAME}"'/d' ${TEMP_LINK_FILE}
-        fi
-    done
-}
-
-log_start () {
-    echo -e "${CYAN}$@${NC}"
-    debug $@
-}
-
-log_finish () {
-    echo -e "${GREEN}$@${NC}"
-    debug $@
-}
-
-log_error () {
-    echo -e "${RED}$@${NC}"
-    debug $@
-}
-
-log () {
-    echo $@ | tee -a $LOG_FILE
-}
-
-debug () {
-    echo $@ >> $LOG_FILE
 }
 
 main $@
