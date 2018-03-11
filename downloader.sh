@@ -16,25 +16,32 @@ LINK_FILE=".downloader.$$.links"
 TEMP_FILE=".downloader.$$.tmp"
 
 main () {
-    savelog -q $LOG_FILE
-
-    debug "$(date)"
-    if [ $# -eq 0 ]; then
-        log "No dlc container or file list provided!"
-    fi
-    debug "Got the following files: $@"
     
-    while getopts "e" opt; do
+    while getopts "he" opt; do
         case $opt in
             e)
-                debug "Edit mode on"
                 EDIT=true
+                ;;
+            h)
+                show_help
                 ;;
             \?)
                 echo "Invalid option: -$OPTARG" >&2
                 ;;
         esac
     done
+
+    savelog -q $LOG_FILE
+
+    debug "$(date)"
+    if [ $# -eq 0 ]; then
+        log "No dlc container or file list provided!"
+        show_help
+    fi
+    debug "Got the following files: $@"
+    if [ "$EDIT" = true ] ; then
+        debug "Edit mode on"
+    fi
     
     # Create $LINK_FILE 
     create_link_file $@
@@ -68,7 +75,7 @@ create_link_file () {
         fi
     done
     if [ "$EDIT" = true ] ; then
-        vim $LINK_FILE
+        vim $link_file
     fi
 }
 
@@ -133,6 +140,35 @@ extract_files () {
         log_error "Unable to find specified extract module ($EXTRACT_MODULE)"
         exit
     fi
+}
+
+show_help () {
+    echo 
+    echo "This is the cli-downloader by steilerDev, an extensible cli command line skript to download various files from different sharehoster"
+    echo
+    echo "Usage:"
+    echo "   downloader <one ore more *.dlc, or *.links file>"
+    echo "Optional arguments:"
+    echo "   -e  Edit the link list before starting the download"
+    echo "   -h  Show this help"
+    echo 
+    echo "Currently loaded modules:"
+    echo "    DLC decrypt:  $DLC_DECRYPT_MODULE"
+    echo "    Extraction:   $EXPTRACT_MODULE"
+    echo 
+    echo "Loaded downloader:"
+    for MOD in $INSTALL_DIR/modules/download/*; do
+        if [ -d $MOD ]; then
+            continue
+        fi
+        if [ ! -x $MOD ]; then
+            continue
+        fi
+        echo "    $(basename $MOD) ($($MOD -h | tr $'\n' $'|' | rev | cut -c2- | rev))"
+    done
+    echo 
+    echo "Downloader folder: $DOWNLOAD_DIR"
+    exit
 }
 
 main $@
