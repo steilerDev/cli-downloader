@@ -2,14 +2,14 @@
 
 # Settings
 DLC_DECRYPT_MODULE="dcrypt.sh"
-EXPTRACT_MODULE="unrar.sh"
+EXTRACT_MODULE="unrar.sh"
 DOWNLOAD_DIR="/media/files/Downloads"
 
 export INSTALL_DIR="/opt/cli-downloader"
-if [ -e $INSTALL_DIR/modules/log/log.sh ]; then
-    source $INSTALL_DIR/modules/log/log.sh
+if [ -e $INSTALL_DIR/modules/helper/log.sh ]; then
+    source $INSTALL_DIR/modules/helper/log.sh
 else
-    echo "Unable to load log module ($INSTALL_DIR/modules/log/log.sh)!"
+    echo "Unable to load log module ($INSTALL_DIR/modules/helper/log.sh)!"
 fi
 
 LINK_FILE=".downloader.$$.links"
@@ -106,14 +106,14 @@ start_download () {
         MODULE_LINK_FILE=".downloader.$$.$(basename $MOD).links"
         > $MODULE_LINK_FILE
         for HOST in $($MOD -h); do
-            log "Matching host $HOST for module $MOD"
+            debug "Matching host $HOST for module $MOD"
             grep -E "^$HOST" $LINK_FILE >> $MODULE_LINK_FILE
             SED_HOST=$(echo $HOST | sed -e 's/[]\/$*.^[]/\\&/g')
             sed -i "/^$SED_HOST/d" $LINK_FILE
         done
 
         if [ "$(wc -l < $MODULE_LINK_FILE)" -gt 0 ]; then
-            log "We have $(wc -l < $MODULE_LINK_FILE) links for this module, starting download..."
+            log_start "We have $(wc -l < $MODULE_LINK_FILE) links for this module, starting download..."
             
             CURR_DIR="$(pwd)"
             FQ_MOD=$(readlink -e $MOD)
@@ -121,12 +121,14 @@ start_download () {
 
             cd $DOWNLOAD_DIR
             $FQ_MOD -l $FQ_LINK
-            if [ ! $FQ_MOD -e ] ; then
+            if ! $FQ_MOD -e ; then
                 log_start "Module did not extract the files, starting extraction..."
                 extract_files $FQ_LINK
             fi
             cd $CURR_DIR 
-            rm $FQ_LINK
+            if [ -e $FQ_LINK ]; then
+                rm $FQ_LINK
+            fi
         fi
         rm $MODULE_LINK_FILE
     done
@@ -154,7 +156,7 @@ show_help () {
     echo 
     echo "Currently loaded modules:"
     echo "    DLC decrypt:  $DLC_DECRYPT_MODULE"
-    echo "    Extraction:   $EXPTRACT_MODULE"
+    echo "    Extraction:   $EXTRACT_MODULE"
     echo 
     echo "Loaded downloader:"
     for MOD in $INSTALL_DIR/modules/download/*; do

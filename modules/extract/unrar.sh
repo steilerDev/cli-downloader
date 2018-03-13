@@ -1,8 +1,8 @@
 #!/bin/bash 
-if [ -e $INSTALL_DIR/module/log/log.sh ]; then
-    source $INSTALL_DIR/module/log/log.sh
+if [ -e $INSTALL_DIR/modules/log/log.sh ]; then
+    source $INSTALL_DIR/modules/log/log.sh
 else
-    echo "Unable to load log module ($INSTALL_DIR/module/log/log.sh)!"
+    echo "Unable to load log module ($INSTALL_DIR/modules/log/log.sh)!"
 fi
 
 # File variables
@@ -30,7 +30,7 @@ log "- Preparing extraction..."
 
 # Sorting files by filename, means we will start with the first archive, subsequential archives do not contain inforamtion about preceding archives, resulting in re-doing the extraction when not starting with the first archive
 debug "Sorting $FILES..."
-sort $FILES -o ${TEMP}
+sort $FILES -o ${TEMP_FILE}
 debug "$FILES sorted!"
 
 while [ -s ${TEMP_FILE} ] ; do

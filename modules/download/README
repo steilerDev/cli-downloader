@@ -4,4 +4,4 @@ In order to check capabilities, each executable should return a \n separated lis
 
 When executed with the -l flag, followed by a file, the script should donwload the link list into it's current working directory.
 
-When executed with the '-e' flag, the skript should return with 0 if it did not extract the files and 1 if it did. In case of 0, please ensure that the LINK_FILE that was provided, now contains the list of files downloaded.
+When executed with the '-e' flag, the skript should return with 1 if it did not extract the files and 0 if it did. In case of 0, please ensure that the LINK_FILE that was provided, now contains the list of files downloaded.

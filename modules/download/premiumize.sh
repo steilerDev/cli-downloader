@@ -3,19 +3,25 @@
 # The config needs to hold the following variables:
 #   USER_ID=""
 #   USER_PIN=""
+
 if [ -e $INSTALL_DIR/modules/download/conf/premiumize.conf ]; then
     source $INSTALL_DIR/modules/download/conf/premiumize.conf
 else
     echo "Unable to load log module ($INSTALL_DIR/modules/download/conf/premiumize.conf)!"
+    exit
 fi
 
-if [ -e $INSTALL_DIR/modules/log/log.sh ]; then
-    source $INSTALL_DIR/modules/log/log.sh
+if [ -e $INSTALL_DIR/modules/helper/log.sh ]; then
+    source $INSTALL_DIR/modules/helper/log.sh
 else
     echo "Unable to load log module ($INSTALL_DIR/modules/log/log.sh)!"
 fi
 
-MAX_PARALLEL_DL=6
+if [ -e $INSTALL_DIR/modules/helper/download.sh ]; then
+    source $INSTALL_DIR/modules/helper/download.sh
+else
+    echo "Unable to load log module ($INSTALL_DIR/modules/helper/download.sh)!"
+fi
 
 # Variables required for http requests
 BOUNDARY="---------------------------312412633113176"
@@ -25,9 +31,7 @@ CSRF_TOKEN=""
 # File variables
 TEMP_FILE=".premiumize.$$.tmp"
 TEMP_LINK_FILE=".premiumize.$$.link"
-
-TOTAL_FILE_COUNT=0
-RETRY_COUNT=0
+PACKAGE_DIR="premiumize-$$"
 
 main () {
     while getopts "ehl:" opt; do
@@ -41,7 +45,7 @@ main () {
                 start_download $OPTARG
                 ;;
             e)
-                exit 0
+                exit 1
                 ;;
             \?)
                 echo "Invalid option: -$OPTARG" >&2
@@ -53,20 +57,17 @@ main () {
 
 start_download () {
     LINKS_FILE=$1
+    if [ ! -d $PACKAGE_DIR ]; then
+        mkdir $PACKAGE_DIR
+    fi
+    cd $PACKAGE_DIR
+
     # Refreshing CSRF Token 
     get_csrf_token
 
     get_premium_links
 
-    download_file_list
-
-    debug "Killing all eventually running jobs..."
-    jobs -l | \
-        grep -oE '[0-9]+ Running' | \
-        grep -oE '[0-9]+' | \
-        while read -r pid ; do
-            kill -9 $pid
-        done
+    download_file_list $TEMP_LINK_FILE
 
     rm $TEMP_FILE
     rm $TEMP_LINK_FILE
@@ -125,65 +126,6 @@ get_premium_links () {
             return 1
         fi
     done < $LINKS_FILE
-}
-
-
-#
-# Iterating over links file (if it exists), downloading each file and extracting them
-# Todo: Spawn curl process with `&` and wait for them to finish
-#
-# Removes single line from LINKS_FILE and appends it to TEMP_FAILED_FILE (in case download did not succeed)
-download_file_list () {
-    if [ ! -e $TEMP_LINK_FILE ] ; then
-        log_error "Unable to retrieve premium links!"
-        return
-    else 
-        log "Downloading files..."
-
-        TOTAL_FILE_COUNT=$(cat $TEMP_LINK_FILE | wc -l)
-        CURRENT_FILE_COUNT=0
-
-        while read -r URL SIZE FILENAME; do
-            while [ "$(jobs | wc -l)" -ge "$MAX_PARALLEL_DL" ] ; do
-                sleep 10
-            done
-
-            ((CURRENT_FILE_COUNT++))
-            download_file "$CURRENT_FILE_COUNT" "$TOTAL_FILE_COUNT" "$SIZE" "$URL" "$OURL" "$FILENAME" &
-
-        done < "${TEMP_LINK_FILE}"
-        debug "All Downloads started, waiting for them to finish..."
-        wait
-
-        # Putting the file names of the downloaded files into the LINKS_FILE, in order to be extracted by the downloader later
-        > ${LINKS_FILE} 
-        while read -r URL SIZE FILENAME; do
-            echo $FILENAME >> ${LINKS_FILE}
-        done < "${TEMP_LINK_FILE}"
-    fi
-}
-
-# Removes single line from LINKS_FILE and appends it to TEMP_FAILED_FILE (in case download did not succeed)
-download_file () {
-    URL=$4
-    CFC=$1
-    TFC=$2
-    SIZE=$3
-    NAME=$6
-
-    log_start "- Downloading file ${CFC}/${TFC} (${NAME})..."
-    curl $URL -o $NAME -# > /dev/null 2>&1
-
-    ACTUAL_SIZE=$(stat --printf="%s" $NAME)
-    if [ "$ACTUAL_SIZE" -ne "$SIZE" ] ; then
-        log_error "! Failed downloading ${CFC}/${TFC} (${NAME}), because size is not as expected (${SIZE} vs. ${ACTUAL_SIZE})"
-        # If the download failed, the file will be removed from the link list (in order to not be respected during extraction later)
-        sed -i '/'"${FILENAME}"'/d' ${TEMP_LINK_FILE}
-        # The remaining data that was downloaded will be removed
-        rm $FILENAME
-    else
-        log_finish "- Finished downloading ${CFC}/${TFC} (${NAME})!"
-    fi
 }
 
 main $@

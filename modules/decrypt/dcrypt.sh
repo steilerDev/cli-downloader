@@ -1,9 +1,9 @@
 #!/bin/bash 
 
-if [ -e $INSTALL_DIR/modules/log/log.sh ]; then
-    source $INSTALL_DIR/modules/log/log.sh
+if [ -e $INSTALL_DIR/modules/helper/log.sh ]; then
+    source $INSTALL_DIR/modules/helper/log.sh
 else
-    echo "Unable to load log module ($INSTALL_DIR/modules/log/log.sh)!"
+    echo "Unable to load log module ($INSTALL_DIR/modules/helper/log.sh)!"
 fi
 
 LINK_FILE=""
