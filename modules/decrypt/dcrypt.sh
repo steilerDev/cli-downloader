@@ -1,10 +1,5 @@
 #!/bin/bash 
-
-if [ -e $INSTALL_DIR/modules/helper/log.sh ]; then
-    source $INSTALL_DIR/modules/helper/log.sh
-else
-    echo "Unable to load log module ($INSTALL_DIR/modules/helper/log.sh)!"
-fi
+load "helper/log.sh"
 
 LINK_FILE=""
 DLC_FILE=""
@@ -68,7 +63,7 @@ curl -s 'http://dcrypt.it/decrypt/upload' \
     -H 'Connection: keep-alive' \
     --data-binary @$TEMP_FILE --compressed | sed '1d;$d' | \
         jq -r -c '.success.links[]' >> $LINK_FILE
-
+debug "Found $(cat $LINK_FILE)"
 rm $TEMP_FILE
 
 log_finish "Successfully decrypted DLC ($(basename $DLC_FILE))!"

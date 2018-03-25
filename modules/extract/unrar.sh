@@ -1,13 +1,10 @@
 #!/bin/bash 
-if [ -e $INSTALL_DIR/modules/log/log.sh ]; then
-    source $INSTALL_DIR/modules/log/log.sh
-else
-    echo "Unable to load log module ($INSTALL_DIR/modules/log/log.sh)!"
-fi
+load "helper/log.sh"
 
 # File variables
 TEMP_FILE=".unrar.$$.tmp"
 DELETE_FILE=".unrar.$$.delete"
+UNRAR_STATUS=".unrar.$$.status"
 
 while getopts "l:" opt; do
     case $opt in
@@ -37,6 +34,7 @@ while [ -s ${TEMP_FILE} ] ; do
     read -r FILENAME < ${TEMP_FILE}
     log_start "- Processing $FILENAME"
     if [ ! -e $FILENAME ] ; then
+        debug "$(pwd) - $(readlink -e $FILENAME) - $FILENAME"
         log_error "-- $FILENAME does not exist, unable to extract"
         sed -i '/'"${FILENAME}"'/d' ${TEMP_FILE}
     elif [[ $FILENAME == *".rar" ]] ; then
@@ -82,3 +80,5 @@ while [ -s ${TEMP_FILE} ] ; do
 done
 
 log_finish "Finished extraction!"
+
+# Delete all files

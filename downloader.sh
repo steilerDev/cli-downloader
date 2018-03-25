@@ -6,17 +6,12 @@ EXTRACT_MODULE="unrar.sh"
 DOWNLOAD_DIR="/media/files/Downloads"
 
 export INSTALL_DIR="/opt/cli-downloader"
-if [ -e $INSTALL_DIR/modules/helper/log.sh ]; then
-    source $INSTALL_DIR/modules/helper/log.sh
-else
-    echo "Unable to load log module ($INSTALL_DIR/modules/helper/log.sh)!"
-fi
 
+DOWNLOAD_HELPER="$INSTALL_DIR/modules/helper/downloader.sh"
 LINK_FILE=".downloader.$$.links"
 TEMP_FILE=".downloader.$$.tmp"
 
 main () {
-    
     while getopts "he" opt; do
         case $opt in
             e)
@@ -27,11 +22,15 @@ main () {
                 ;;
             \?)
                 echo "Invalid option: -$OPTARG" >&2
+                show_help
                 ;;
         esac
     done
 
-    savelog -q $LOG_FILE
+    load "helper/log.sh"
+    savelog -q $DEBUG_LOG_FILE
+    > $WINDOW_LOG
+    ui_setup
 
     debug "$(date)"
     if [ $# -eq 0 ]; then
@@ -75,7 +74,7 @@ create_link_file () {
         fi
     done
     if [ "$EDIT" = true ] ; then
-        vim $link_file
+        vim $LINK_FILE
     fi
 }
 
@@ -92,7 +91,7 @@ decrypt_dlc () {
 start_download () {
     # We need to split the link file for the respective hosts
 
-    for MOD in $INSTALL_DIR/modules/download/*; do
+    for MOD in $INSTALL_DIR/modules/hoster/*; do
         if [ -d $MOD ]; then
             debug "$MOD is folder, skipping"
             continue
@@ -103,9 +102,10 @@ start_download () {
         fi
 
         debug "$MOD is module"
-        MODULE_LINK_FILE=".downloader.$$.$(basename $MOD).links"
+        MOD_BASE=$(basename $MOD)
+        MODULE_LINK_FILE=".downloader.$$.${MOD_BASE}.links"
         > $MODULE_LINK_FILE
-        for HOST in $($MOD -h); do
+        for HOST in $($DOWNLOAD_HELPER $MOD_BASE -h); do
             debug "Matching host $HOST for module $MOD"
             grep -E "^$HOST" $LINK_FILE >> $MODULE_LINK_FILE
             SED_HOST=$(echo $HOST | sed -e 's/[]\/$*.^[]/\\&/g')
@@ -116,21 +116,18 @@ start_download () {
             log_start "We have $(wc -l < $MODULE_LINK_FILE) links for this module, starting download..."
             
             CURR_DIR="$(pwd)"
-            FQ_MOD=$(readlink -e $MOD)
             FQ_LINK=$(readlink -e $MODULE_LINK_FILE)
 
             cd $DOWNLOAD_DIR
-            $FQ_MOD -l $FQ_LINK
-            if ! $FQ_MOD -e ; then
-                log_start "Module did not extract the files, starting extraction..."
-                extract_files $FQ_LINK
-            fi
+            $DOWNLOAD_HELPER $MOD_BASE -l $FQ_LINK
+
+            extract_files $FQ_LINK
             cd $CURR_DIR 
+
             if [ -e $FQ_LINK ]; then
                 rm $FQ_LINK
             fi
         fi
-        rm $MODULE_LINK_FILE
     done
     rm $LINK_FILE
 }
@@ -173,4 +170,14 @@ show_help () {
     exit
 }
 
+# Loads external modules based on $INSTALL_DIR/modules/$1
+load () {
+    if [ -e $INSTALL_DIR/modules/$1 ]; then
+        source $INSTALL_DIR/modules/$1
+    else
+        echo "Unable to load module ($INSTALL_DIR/modules/$1), aborting!"
+        exit
+    fi
+}
+export -f load
 main $@
