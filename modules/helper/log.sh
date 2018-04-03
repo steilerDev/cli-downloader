@@ -36,5 +36,5 @@ log () {
 }
 
 debug () {
-    echo $@ >> $DEBUG_LOG_FILE
+    echo "$(date --rfc-3339=seconds) $@" >> $DEBUG_LOG_FILE
 }

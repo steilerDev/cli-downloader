@@ -4,7 +4,6 @@ MAX_PARALLEL_DL=6
 TOTAL_FILE_COUNT=0
 RETRY_COUNT=0
 
-PACKAGE_DIR="clid-$$"
 load "helper/log.sh"
 
 main () {
@@ -39,11 +38,6 @@ FINISHED_LIST=".downloader.$$.finished"
 download_file_list () {
     DOWNLOAD_LIST_FILE=$1
 
-    if [ ! -d $PACKAGE_DIR ]; then
-        mkdir $PACKAGE_DIR
-    fi
-    cd $PACKAGE_DIR
-
     if [ ! -e $DOWNLOAD_LIST_FILE ] ; then
         log_error "Unable to retrieve links!"
         return
@@ -53,28 +47,30 @@ download_file_list () {
         TOTAL_FILE_COUNT=$(cat $DOWNLOAD_LIST_FILE | wc -l)
         CURRENT_FILE_COUNT=0
 
-        while read -r OURL ; do
-            while : ; do
-                if [ "$(jobs | wc -l)" -lt "$MAX_PARALLEL_DL" ] ; then
-                    get_link $OURL
-                    ((CURRENT_FILE_COUNT++))
-                    download_file "$CURRENT_FILE_COUNT" "$TOTAL_FILE_COUNT" "$SIZE" "$URL" "$FILENAME" &
-                    break
-                fi
+        init_ui "Downloading"
 
-                if jobs %% > /dev/null ; then
-                    show_download_status $(pwd)
-                fi
+        while read -u 3 OURL ; do
+            debug "$(date +%T) Next file $OURL"
+
+            while [ "$(jobs | wc -l)" -ge "$MAX_PARALLEL_DL" ] ; do
+                show_download_status $(pwd)
             done
-        done < "${DOWNLOAD_LIST_FILE}"
+
+            ((CURRENT_FILE_COUNT++))
+            get_link $OURL
+            download_file "$CURRENT_FILE_COUNT" "$TOTAL_FILE_COUNT" "$SIZE" "$URL" "$FILENAME" &
+            show_download_status $(pwd)
+        done 3< "${DOWNLOAD_LIST_FILE}"
+
         debug "All Downloads started, waiting for them to finish..."
         while jobs %% > /dev/null 2>&1 ; do
             show_download_status $(pwd)
         done
+
         wait
 
         # Remove progress files
-        find . -name '*.progress' -type f 2> /dev/null | rm
+        find . -name '*.progress' -type f 2> /dev/null | xargs rm
         # Move list files
         rm $DOWNLOAD_LIST_FILE
         mv $FINISHED_LIST $DOWNLOAD_LIST_FILE
@@ -87,6 +83,7 @@ download_file_list () {
         while read -r pid ; do
             kill -9 $pid
         done
+    
 }
 
 # Downloads file using curl. 
@@ -125,6 +122,8 @@ download_file () {
         debug "- Finished downloading ${CFC}/${TFC} (${NAME})!"
         echo "$FILENAME" >> $FINISHED_LIST
     fi
+
+    mv $PROGRESS_FILE ".downloader.$$.X$(printf "%05d" ${CFC}).progress"
 }
 
 main $@

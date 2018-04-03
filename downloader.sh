@@ -2,12 +2,12 @@
 
 # Settings
 DLC_DECRYPT_MODULE="dcrypt.sh"
-EXTRACT_MODULE="unrar.sh"
 DOWNLOAD_DIR="/media/files/Downloads"
 
 export INSTALL_DIR="/opt/cli-downloader"
 
 DOWNLOAD_HELPER="$INSTALL_DIR/modules/helper/downloader.sh"
+EXTRACT_HELPER="$INSTALL_DIR/modules/helper/extract.sh"
 LINK_FILE=".downloader.$$.links"
 TEMP_FILE=".downloader.$$.tmp"
 
@@ -49,6 +49,7 @@ main () {
     start_download
     
     log_finish "All done, thanks for using cli-downloader"
+    ui_destroy
 }
 
 create_link_file () {
@@ -114,29 +115,38 @@ start_download () {
 
         if [ "$(wc -l < $MODULE_LINK_FILE)" -gt 0 ]; then
             log_start "We have $(wc -l < $MODULE_LINK_FILE) links for this module, starting download..."
+
             
             CURR_DIR="$(pwd)"
             FQ_LINK=$(readlink -e $MODULE_LINK_FILE)
 
-            cd $DOWNLOAD_DIR
+            PACKAGE_DIR="$DOWNLOAD_DIR/clid-$MOD_BASE-$$"
+            if [ ! -d $PACKAGE_DIR ]; then
+                mkdir -p $PACKAGE_DIR
+            fi
+
+            cd $PACKAGE_DIR
+            log "Saving files to $PACKAGE_DIR"
+
             $DOWNLOAD_HELPER $MOD_BASE -l $FQ_LINK
+            ui_reset
 
             extract_files $FQ_LINK
             cd $CURR_DIR 
 
-            if [ -e $FQ_LINK ]; then
-                rm $FQ_LINK
-            fi
+        fi
+        if [ -e $MODULE_LINK_FILE ]; then
+            rm $MODULE_LINK_FILE
         fi
     done
     rm $LINK_FILE
 }
 
 extract_files () {
-    if [ -e $INSTALL_DIR/modules/extract/$EXTRACT_MODULE ] ; then
-        $INSTALL_DIR/modules/extract/$EXTRACT_MODULE -l $1
+    if [ -e $EXTRACT_HELPER ]  ; then
+        $EXTRACT_HELPER -l $1
     else
-        log_error "Unable to find specified extract module ($EXTRACT_MODULE)"
+        log_error "Unable to find extract module ($EXTRACT_HELPER)"
         exit
     fi
 }
@@ -151,11 +161,10 @@ show_help () {
     echo "   -e  Edit the link list before starting the download"
     echo "   -h  Show this help"
     echo 
-    echo "Currently loaded modules:"
+    echo "Currently loaded module:"
     echo "    DLC decrypt:  $DLC_DECRYPT_MODULE"
-    echo "    Extraction:   $EXTRACT_MODULE"
     echo 
-    echo "Loaded downloader:"
+    echo "Loaded hoster:"
     for MOD in $INSTALL_DIR/modules/download/*; do
         if [ -d $MOD ]; then
             continue
