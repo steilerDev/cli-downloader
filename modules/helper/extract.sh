@@ -55,7 +55,7 @@ extract_file_list () {
             else
                 unrar_file $FILENAME &
                 while jobs %% > /dev/null 2>&1 ; do
-                    show_unrar_status "$FILENAME" $(readlink -e $UNRAR_STATUS)
+                    show_unrar_status $(readlink -e $UNRAR_STATUS)
                 done
 
                 wait
