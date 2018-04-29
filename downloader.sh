@@ -3,6 +3,7 @@
 # Settings
 DLC_DECRYPT_MODULE="dcrypt.sh"
 DOWNLOAD_DIR="/media/files/Downloads"
+FINISHED_FOLDER="_finished"
 
 export INSTALL_DIR="/opt/cli-downloader"
 
@@ -70,8 +71,11 @@ create_link_file () {
                 log_error "\"$INPUT\" is neither a DLC nor a links file, can not process it!"
                 continue
             fi
-            log_finish "Finished processing ${INPUT}, removing file!"
-            rm $INPUT
+            log_finish "Finished processing ${INPUT}, renaming file!"
+            if [ ! -e "$FINISHED_FOLDER" ] ; then
+                mkdir "$FINISHED_FOLDER"
+            fi
+            mv "$INPUT" "$FINISHED_FOLDER/"
         fi
     done
     if [ "$EDIT" = true ] ; then
