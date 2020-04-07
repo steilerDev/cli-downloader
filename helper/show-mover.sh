@@ -11,7 +11,7 @@ NEW_C='\033[1;33m'
 NC='\033[0m'
 
 for FILE in "$@"; do
-    NAME=$(echo $1 | grep -oE "^[A-Za-z]+")
+    NAME=$(echo $FILE | grep -oE "^[A-Za-z]+")
     if [ $(find $DIR -maxdepth 1 | grep $NAME | wc -l) -eq 1 ] ; then
         SHOW_DIR=$(find $DIR -maxdepth 1 | grep $NAME)
         SHOW_NAME=$(echo $SHOW_DIR | sed "s/$SED_DIR//g")
@@ -24,8 +24,8 @@ for FILE in "$@"; do
             break
         done 
     fi
-    SEASON=$(echo $1 | grep -Eo "S[0-9]+" | cut -c 2-)
-    EPISODE=$(echo $1 | grep -Eo "E[0-9]+" | cut -c 2-)
+    SEASON=$(echo $FILE | grep -Eo "S[0-9]+" | cut -c 2-)
+    EPISODE=$(echo $FILE | grep -Eo "E[0-9]+" | cut -c 2-)
 
     N0_SEASON=$(echo $SEASON | sed "s/^0*//g")
 
@@ -37,17 +37,17 @@ for FILE in "$@"; do
     fi
 
     if [ ! -d "$DIR/$SHOW_NAME" ] ; then
-        echo "Cannot find $DIR/$SHOW_NAME/"
-        exit
+        echo "Cannot find $DIR/$SHOW_NAME/, creating..."
+        mkdir -p "$DIR/$SHOW_NAME"
     fi
 
     if [ ! -d "$DIR/$SHOW_NAME/Season $N0_SEASON" ] ; then
-        echo "Cannot find $DIR/$SHOW_NAME/Season $N0_SEASON/"
-        exit
+        echo "Cannot find $DIR/$SHOW_NAME/Season $N0_SEASON/, creating..."
+        mkdir -p "$DIR/$SHOW_NAME/Season $N0_SEASON"
     fi
 
 
-    echo -e "Found new path for ${OLD_C}${1}${NC}:"
+    echo -e "Found new path for ${OLD_C}${FILE}${NC}:"
     echo -e "                   ${NEW_C}${NEW_PATH}${NC}"
     echo
 
